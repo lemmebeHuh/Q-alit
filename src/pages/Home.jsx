@@ -78,8 +78,8 @@ export default function Home() {
             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Klinik Cerdas</p>
           </div>
         </div>
-        <button onClick={() => navigate('/admin')} className="text-xs font-bold text-gray-400 hover:text-emerald-600 transition-colors uppercase tracking-widest">
-          Admin Login
+        <button onClick={() => navigate('/admin')} className="text-xs font-bold text-white bg-gray-900 hover:bg-emerald-600 px-4 py-2.5 rounded-xl transition-all uppercase tracking-widest shadow-md hover:shadow-emerald-600/20 active:scale-95 flex items-center gap-2">
+          Dashboard Admin <ArrowRight className="w-3 h-3" />
         </button>
       </header>
 
@@ -124,37 +124,37 @@ export default function Home() {
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Nama Lengkap</label>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2 ml-1">Nama Lengkap</label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full border-2 border-gray-100 bg-gray-50/50 p-4 rounded-2xl focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium text-gray-800 placeholder:text-gray-300"
-                    placeholder="Contoh: Budi Santoso"
+                    className="w-full border-2 border-gray-300 bg-white p-4 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium text-gray-800 placeholder:text-gray-400"
+                    placeholder="Contoh: Sang Kala Aji"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">No. WhatsApp</label>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2 ml-1">No. WhatsApp</label>
                   <div className="relative">
-                    <Phone className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
+                    <Phone className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="tel"
                       required
                       value={formData.phone}
                       onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/\D/g, '')})}
-                      className="w-full border-2 border-gray-100 bg-gray-50/50 p-4 pl-12 rounded-2xl focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium text-gray-800 placeholder:text-gray-300"
+                      className="w-full border-2 border-gray-300 bg-white p-4 pl-12 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium text-gray-800 placeholder:text-gray-400"
                       placeholder="08123456789"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Keluhan (Opsional)</label>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2 ml-1">Keluhan (Opsional)</label>
                   <input
                     type="text"
                     value={formData.complaint}
                     onChange={(e) => setFormData({...formData, complaint: e.target.value})}
-                    className="w-full border-2 border-gray-100 bg-gray-50/50 p-4 rounded-2xl focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium text-gray-800 placeholder:text-gray-300"
+                    className="w-full border-2 border-gray-300 bg-white p-4 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium text-gray-800 placeholder:text-gray-400"
                     placeholder="Sakit perut, pegal, dll"
                   />
                 </div>
@@ -192,7 +192,7 @@ export default function Home() {
                     required
                     value={trackInput}
                     onChange={(e) => setTrackInput(e.target.value)}
-                    className="w-full border-2 border-gray-100 bg-gray-50/50 p-4 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-bold text-center text-xl text-gray-800 placeholder:text-gray-300 tracking-wider"
+                    className="w-full border-2 border-gray-300 bg-white p-4 rounded-2xl focus:border-blue-500 outline-none transition-all font-bold text-center text-xl text-gray-800 placeholder:text-gray-400 tracking-wider"
                     placeholder="A-XXX / 0812..."
                   />
                 </div>

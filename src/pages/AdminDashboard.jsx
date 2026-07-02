@@ -166,7 +166,7 @@ export default function AdminDashboard() {
     <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-700 pb-12">
       
       {/* Header Tabs (Enterprise style) */}
-      <div className="flex bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-hidden relative">
+      <div className="flex flex-col md:flex-row bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-hidden relative gap-2 md:gap-0">
         <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-white pointer-events-none"></div>
         <button 
           onClick={() => { setActiveTab('queue'); setSelectedPatient(null); }}
@@ -242,16 +242,16 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <div className="flex justify-between items-center gap-2">
+          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
             <button 
               onClick={handleReset} 
               disabled={waitingList.length > 0 || inProgressList.length > 0}
               title={(waitingList.length > 0 || inProgressList.length > 0) ? "Harap selesaikan semua pasien sebelum menutup klinik!" : ""}
-              className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-xl hover:bg-red-100 text-sm font-bold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-xl hover:bg-red-100 text-sm font-bold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
             >
               <Power className="w-4 h-4" /> Tutup Klinik (Reset)
             </button>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
               <button 
                 onClick={async () => {
                   const names = ["Budi", "Ani", "Siti", "Agus", "Wati", "Iwan", "Dewi", "Rudi", "Nina", "Eko", "Maya", "Dedi", "Lia", "Heri", "Rina", "Joko", "Yuni", "Tono", "Sri", "Andi", "Fajar", "Gilang", "Hana", "Indra", "Jihan", "Kiki", "Lestari", "Maman", "Nisa", "Oki", "Putri", "Qori", "Reza", "Sinta", "Tari", "Umar", "Vina", "Wawan", "Yana", "Zaki"];
@@ -264,18 +264,18 @@ export default function AdminDashboard() {
                   }
                   alert("40 Data berhasil dimasukkan!");
                 }} 
-                className="flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 px-4 py-2.5 rounded-xl hover:bg-blue-100 text-sm font-bold shadow-sm transition-colors"
+                className="flex items-center justify-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 px-4 py-2.5 rounded-xl hover:bg-blue-100 text-sm font-bold shadow-sm transition-colors w-full sm:w-auto"
               >
                 Seed 40 Data (Test)
               </button>
-              <button onClick={() => setShowWalkIn(!showWalkIn)} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 text-sm font-bold shadow-lg shadow-gray-900/20 transition-all active:scale-95">
+              <button onClick={() => setShowWalkIn(!showWalkIn)} className="flex items-center justify-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 text-sm font-bold shadow-lg shadow-gray-900/20 transition-all active:scale-95 w-full sm:w-auto">
                 <UserPlus className="w-4 h-4" /> {showWalkIn ? 'Batal' : 'Daftar Walk-in'}
               </button>
             </div>
           </div>
 
           {showWalkIn && (
-            <form onSubmit={handleWalkInSubmit} className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 flex flex-col md:flex-row gap-4 items-end animate-in fade-in slide-in-from-top-4">
+            <form onSubmit={handleWalkInSubmit} className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 flex flex-col md:flex-row gap-4 items-start md:items-end animate-in fade-in slide-in-from-top-4">
               <div className="flex-1 w-full">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Nama Pasien</label>
                 <input type="text" required value={walkInData.name} onChange={e => setWalkInData({...walkInData, name: e.target.value})} className="w-full border-2 border-gray-100 rounded-xl p-2.5 bg-gray-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors text-sm font-medium" placeholder="Nama" />
@@ -288,7 +288,7 @@ export default function AdminDashboard() {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Keluhan</label>
                 <input type="text" value={walkInData.complaint} onChange={e => setWalkInData({...walkInData, complaint: e.target.value})} className="w-full border-2 border-gray-100 rounded-xl p-2.5 bg-gray-50 focus:bg-white focus:border-emerald-500 outline-none transition-colors text-sm font-medium" placeholder="Sakit..." />
               </div>
-              <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-600/20">
+              <button type="submit" className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-600/20 w-full md:w-auto">
                 Daftar
               </button>
             </form>
