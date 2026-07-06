@@ -189,7 +189,14 @@ export const addQueue = async (patientData) => {
     // Update profil pasien
     const patientRef = doc(db, "patients", patientData.phone);
     const patientSnap = await transaction.get(patientRef);
-    let finalPatientName = patientData.name;
+    if (patientSnap.exists()) {
+      const existingName = patientSnap.data().name;
+      // Validasi kepemilikan: Nomor HP hanya boleh dipakai oleh 1 Nama
+      if (existingName.toLowerCase().trim() !== patientData.name.toLowerCase().trim()) {
+        const maskedName = existingName.substring(0, 3) + "***";
+        throw new Error(`Nomor telepon ini telah terdaftar atas nama ${maskedName}. Harap gunakan nama asli pendaftar awal atau gunakan nomor telepon lain.`);
+      }
+    }
 
     const configSnap = await transaction.get(configRef);
     let config = configSnap.exists() ? configSnap.data() : { lastPrediction: 15, currentCapacity: 0 };
@@ -198,14 +205,13 @@ export const addQueue = async (patientData) => {
 
     if (!patientSnap.exists()) {
       transaction.set(patientRef, {
-        name: finalPatientName,
+        name: patientData.name,
         phone: patientData.phone,
         firstVisit: serverTimestamp(),
         lastVisitDate: targetDate
       });
     } else {
       transaction.update(patientRef, {
-        name: finalPatientName,
         lastVisitDate: targetDate
       });
     }
@@ -224,7 +230,7 @@ export const addQueue = async (patientData) => {
     const newData = {
       queueNumber: newQueueNumber,
       queueCode: queueCode,
-      name: finalPatientName,
+      name: patientSnap.exists() ? patientSnap.data().name : patientData.name,
       phone: patientData.phone,
       complaint: patientData.complaint,
       status: 'waiting',
