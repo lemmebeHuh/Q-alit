@@ -252,6 +252,39 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* Debug SES Calculation Card */}
+          {config?.lastCalculationDetails && (
+            <div className="bg-slate-800 text-slate-200 p-6 rounded-2xl border border-slate-700 font-mono text-sm shadow-xl animate-in slide-in-from-top-4">
+              <h3 className="text-emerald-400 font-bold mb-4 uppercase tracking-widest text-xs flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                Transparansi Rumus SES (Single Exponential Smoothing)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <p><span className="text-slate-400">Variabel Terakhir (Pasien Selesai):</span></p>
+                  <ul className="list-disc list-inside space-y-1 ml-2 text-slate-300">
+                    <li>Alpha (<span className="text-emerald-400">α</span>) = {config.lastCalculationDetails.alpha}</li>
+                    <li>Durasi Aktual Terakhir (<span className="text-emerald-400">X_t</span>) = {config.lastCalculationDetails.Xt} menit</li>
+                    <li>Prediksi Sebelumnya (<span className="text-emerald-400">S_t-1</span>) = {config.lastCalculationDetails.St_prev.toFixed(2)} menit</li>
+                  </ul>
+                </div>
+                <div className="space-y-2 bg-slate-900 p-4 rounded-xl border border-slate-700">
+                  <p className="text-slate-400 mb-2">Rumus: S_t = (α * X_t) + ((1 - α) * S_t-1)</p>
+                  <p className="font-bold text-lg text-white">
+                    S_t = ({config.lastCalculationDetails.alpha} * {config.lastCalculationDetails.Xt}) + 
+                    ({(1 - config.lastCalculationDetails.alpha).toFixed(1)} * {config.lastCalculationDetails.St_prev.toFixed(2)})
+                  </p>
+                  <p className="text-emerald-400 font-black text-2xl mt-2 border-t border-slate-700 pt-2">
+                    Hasil = {config.lastCalculationDetails.St_new.toFixed(2)} Menit
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mt-4 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                💡 Angka <strong className="text-white">{config.lastCalculationDetails.St_new.toFixed(2)} menit</strong> inilah yang saat ini digunakan untuk mengalikan antrean dan ditampilkan secara live di HP pasien yang menunggu di luar.
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
             <button 
               onClick={handleReset} 

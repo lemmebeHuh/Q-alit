@@ -401,7 +401,13 @@ export const finishPatient = async (id, actualDurationMins = null) => {
       currentCapacity: newCapacity,
       lastDuration: Xt,
       lastPrediction: St,
-      lastCompletedAt: serverTimestamp()
+      lastCompletedAt: serverTimestamp(),
+      lastCalculationDetails: {
+        Xt: Xt,
+        St_prev: St_prev,
+        alpha: alpha,
+        St_new: St
+      }
     });
 
     // Update remaining waiting patients' estimated time
