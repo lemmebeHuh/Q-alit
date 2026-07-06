@@ -6,6 +6,7 @@ import { id as idLocale } from 'date-fns/locale';
 export default function TvDisplay() {
   const [queues, setQueues] = useState([]);
   const [config, setConfig] = useState({});
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     const unsubQueues = subscribeToQueues(setQueues);
