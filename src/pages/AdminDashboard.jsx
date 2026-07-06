@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { subscribeToQueues, subscribeToConfig, callNextPatient, callInitialBatch, finishPatient, skipPatient, restoreQueue, addQueue, getPatients, getPatientHistory, resetDailySystem, getHistoryByDateRange, toggleSystemBreak } from '../firebase/db';
+import { subscribeToQueues, subscribeToFutureBookings, subscribeToConfig, callNextPatient, callInitialBatch, finishPatient, skipPatient, restoreQueue, addQueue, getPatients, getPatientHistory, resetDailySystem, getHistoryByDateRange, toggleSystemBreak, getTodayStr, patchLegacyQueues } from '../firebase/db';
 import { Users, CheckCircle, SkipForward, Play, AlertTriangle, UserPlus, List, Search, History, ChevronLeft, LayoutDashboard, Clock, Power, BarChart2, Download, Calendar, Coffee } from 'lucide-react';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -10,6 +10,7 @@ export default function AdminDashboard() {
 
   // Queue State
   const [queues, setQueues] = useState([]);
+  const [futureBookings, setFutureBookings] = useState([]);
   const [config, setConfig] = useState({ currentCapacity: 0, lastPrediction: 15, isPaused: false });
   const [showWalkIn, setShowWalkIn] = useState(false);
   const [walkInData, setWalkInData] = useState({ name: '', phone: '', complaint: '' });
@@ -28,10 +29,13 @@ export default function AdminDashboard() {
   const [isLoadingReport, setIsLoadingReport] = useState(false);
 
   useEffect(() => {
+    patchLegacyQueues();
     const unsubQueues = subscribeToQueues(setQueues);
+    const unsubFuture = subscribeToFutureBookings(setFutureBookings);
     const unsubConfig = subscribeToConfig(setConfig);
     return () => {
       unsubQueues();
+      unsubFuture();
       unsubConfig();
     };
   }, []);
@@ -173,6 +177,12 @@ export default function AdminDashboard() {
           className={`flex-1 py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all relative z-10 ${activeTab === 'queue' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
         >
           <LayoutDashboard className="w-4 h-4" /> Live Dashboard
+        </button>
+        <button 
+          onClick={() => { setActiveTab('booking'); setSelectedPatient(null); }}
+          className={`flex-1 py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all relative z-10 ${activeTab === 'booking' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
+        >
+          <Calendar className="w-4 h-4" /> Jadwal Booking
         </button>
         <button 
           onClick={() => setActiveTab('directory')}
@@ -493,6 +503,54 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB 1.5: BOOKING SCHEDULE */}
+      {activeTab === 'booking' && (
+        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="p-8 border-b border-gray-100 flex flex-col md:flex-row gap-6 justify-between items-center bg-gradient-to-r from-orange-50 to-white">
+            <div>
+              <p className="text-sm font-bold text-orange-600 uppercase tracking-widest mb-1">Masa Depan</p>
+              <h2 className="text-2xl font-black text-gray-800">Jadwal Booking</h2>
+              <p className="text-gray-500 text-sm mt-1">Daftar pasien yang mendaftar untuk hari esok dan seterusnya.</p>
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-gray-600">
+              <thead className="bg-gray-50/80 text-gray-500 uppercase text-[10px] tracking-widest font-bold">
+                <tr>
+                  <th className="px-8 py-5">Tanggal Berobat</th>
+                  <th className="px-8 py-5">No. Antrean</th>
+                  <th className="px-8 py-5">Nama Pasien</th>
+                  <th className="px-8 py-5">Nomor WhatsApp</th>
+                  <th className="px-8 py-5">Keluhan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {futureBookings.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-8 py-12 text-center text-gray-400 font-medium">Belum ada pasien yang booking untuk hari depan.</td>
+                  </tr>
+                ) : (
+                  futureBookings.map(q => (
+                    <tr key={q.id} className="hover:bg-orange-50/50 transition-colors group">
+                      <td className="px-8 py-5">
+                        <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold text-xs">
+                          {format(new Date(q.targetDate), 'dd MMM yyyy')}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5 font-black text-gray-800 text-lg">No. {q.queueNumber}</td>
+                      <td className="px-8 py-5 font-bold text-gray-800">{q.name}</td>
+                      <td className="px-8 py-5 font-mono text-gray-500">{q.phone}</td>
+                      <td className="px-8 py-5">{q.complaint || '-'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { addQueue, getQueueByPhone, getQueueByCode } from '../firebase/db';
-import { ArrowRight, Search, Activity, Clock, Users, Phone } from 'lucide-react';
+import { ArrowRight, Search, Activity, Clock, Users, Phone, Calendar } from 'lucide-react';
 
 export default function Home() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('daftar'); // 'daftar' | 'lacak'
   
   // Register State
-  const [formData, setFormData] = useState({ name: '', phone: '', complaint: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', complaint: '', targetDate: new Date().toLocaleDateString('en-CA') });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,11 +23,6 @@ export default function Home() {
     setError('');
 
     try {
-      const activeQueue = await getQueueByPhone(formData.phone);
-      if (activeQueue) {
-        throw new Error("Nomor Anda sudah terdaftar dalam antrean hari ini!");
-      }
-
       const newData = await addQueue(formData);
       navigate(`/queue/${newData.queueCode}`);
     } catch (err) {
@@ -145,6 +140,20 @@ export default function Home() {
                       onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/\D/g, '')})}
                       className="w-full border-2 border-gray-300 bg-white p-4 pl-12 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium text-gray-800 placeholder:text-gray-400"
                       placeholder="08123456789"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2 ml-1">Tanggal Berobat</label>
+                  <div className="relative">
+                    <Calendar className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="date"
+                      required
+                      min={new Date().toLocaleDateString('en-CA')}
+                      value={formData.targetDate}
+                      onChange={(e) => setFormData({...formData, targetDate: e.target.value})}
+                      className="w-full border-2 border-gray-300 bg-white p-4 pl-12 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium text-gray-800"
                     />
                   </div>
                 </div>

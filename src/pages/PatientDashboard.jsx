@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { db, cancelQueue } from '../firebase/db';
+import { db, cancelQueue, getTodayStr } from '../firebase/db';
 import { BellRing, Flame, UserCheck, Clock, ChevronLeft, Sparkles, XCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -167,8 +167,8 @@ export default function PatientDashboard() {
   const formattedWaitTime = parseFloat(config?.lastPrediction || 15).toFixed(1).replace('.', ',');
 
   // Calculate Progress Percentage (0 to 100)
-  // Assuming a max queue of 20 for visual scale, or just relative to totalWaiting
   const progressPercent = isServing ? 100 : (isWaiting && totalWaiting > 0 ? Math.max(5, ((totalWaiting - peopleAhead) / totalWaiting) * 100) : 0);
+  const isFuture = patientData.targetDate && patientData.targetDate > getTodayStr();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto p-4 sm:p-6 font-sans relative">
@@ -239,8 +239,18 @@ export default function PatientDashboard() {
         </div>
       </div>
 
-      {/* Progress Bar for Waiting Patients */}
-      {isWaiting && (
+      {isFuture && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-6 rounded-[2rem] text-center mb-6 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-calendar mx-auto mb-2 text-blue-500"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          <h3 className="text-lg font-black mb-1">Booking Dikonfirmasi</h3>
+          <p className="text-sm font-medium">Jadwal berobat Anda pada tanggal:</p>
+          <p className="text-xl font-bold mt-2 text-blue-900">{format(new Date(patientData.targetDate), 'dd MMMM yyyy', { locale: idLocale })}</p>
+          <p className="text-xs text-blue-600 mt-4 opacity-80">Silakan cek kembali halaman ini di hari H untuk memantau pergerakan antrean.</p>
+        </div>
+      )}
+
+      {/* Progress Bar for Waiting Patients (ONLY FOR TODAY) */}
+      {isWaiting && !isFuture && (
         <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 mb-6">
           <div className="flex justify-between items-end mb-4">
             <div>
@@ -266,8 +276,8 @@ export default function PatientDashboard() {
         </div>
       )}
 
-      {/* Dynamic Engaging Status Card */}
-      {isWaiting && (
+      {/* Dynamic Engaging Status Card (ONLY FOR TODAY) */}
+      {isWaiting && !isFuture && (
         <div className={`rounded-3xl p-5 border shadow-sm flex items-start gap-4 transition-all duration-500 mb-6 ${isAlmostTurn ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-100'}`}>
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${isAlmostTurn ? 'bg-amber-200 text-amber-700' : 'bg-blue-200 text-blue-700'}`}>
             <BellRing className="w-5 h-5" />
@@ -289,7 +299,7 @@ export default function PatientDashboard() {
       )}
 
       {/* Info Cards */}
-      {!isCompleted && !isCancelled && !isSkipped && (
+      {!isCompleted && !isCancelled && !isSkipped && !isFuture && (
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-white p-4 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center">
             <UserCheck className="text-emerald-500 w-6 h-6 mb-2" />
