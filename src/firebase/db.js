@@ -87,6 +87,7 @@ export const subscribeToFutureBookings = (callback) => {
   const q = query(queuesRef, where("targetDate", ">", todayStr), orderBy("targetDate", "asc"));
   return onSnapshot(q, (snapshot) => {
     let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    data = data.filter(q => q.status !== 'cancelled');
     // Client-side sort by queueNumber to avoid Firestore composite index requirement
     data.sort((a, b) => {
       if (a.targetDate === b.targetDate) {
@@ -184,10 +185,6 @@ export const addQueue = async (patientData) => {
     const patientSnap = await transaction.get(patientRef);
     let finalPatientName = patientData.name;
 
-    if (patientSnap.exists()) {
-      finalPatientName = patientSnap.data().name;
-    }
-
     const configSnap = await transaction.get(configRef);
     let config = configSnap.exists() ? configSnap.data() : { lastPrediction: 15, currentCapacity: 0 };
     
@@ -202,6 +199,7 @@ export const addQueue = async (patientData) => {
       });
     } else {
       transaction.update(patientRef, {
+        name: finalPatientName,
         lastVisitDate: targetDate
       });
     }
@@ -289,12 +287,15 @@ export const resetDailySystem = async () => {
 
     const batch = writeBatch(db);
     const dateStr = getTodayStr();
-    const totalPatients = queuesToArchive.length;
+    let totalPatients = 0;
     const complaints = {};
     
     queuesToArchive.forEach(({ ref, data }) => {
-      const c = data.complaint || 'Tidak Diketahui';
-      complaints[c] = (complaints[c] || 0) + 1;
+      if (data.status !== 'cancelled') {
+        const c = data.complaint || 'Tidak Diketahui';
+        complaints[c] = (complaints[c] || 0) + 1;
+        totalPatients++;
+      }
 
       const historyDocRef = doc(collection(db, "queue_history"));
       batch.set(historyDocRef, {
@@ -353,7 +354,11 @@ export const getHistoryByDateRange = async (startDateStr, endDateStr) => {
       where("registeredAt", "<=", endObj)
     );
     const historySnap = await getDocs(hQuery);
-    historySnap.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
+    historySnap.forEach(doc => {
+      if (doc.data().status !== 'cancelled') {
+        results.push({ id: doc.id, ...doc.data() });
+      }
+    });
 
     const todayObj = new Date();
     todayObj.setHours(0,0,0,0);
@@ -364,7 +369,11 @@ export const getHistoryByDateRange = async (startDateStr, endDateStr) => {
         where("registeredAt", "<=", endObj)
       );
       const queuesSnap = await getDocs(qQuery);
-      queuesSnap.forEach(doc => results.push({ id: doc.id, ...doc.data() }));
+      queuesSnap.forEach(doc => {
+        if (doc.data().status !== 'cancelled') {
+          results.push({ id: doc.id, ...doc.data() });
+        }
+      });
     }
 
     return results.sort((a, b) => b.registeredAt?.seconds - a.registeredAt?.seconds);

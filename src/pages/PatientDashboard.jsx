@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, orderBy } from 'firebase/firestore';
 import { db, cancelQueue, getTodayStr } from '../firebase/db';
 import { BellRing, Flame, UserCheck, Clock, ChevronLeft, Sparkles, XCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -49,7 +49,6 @@ export default function PatientDashboard() {
       // 2. We need to query queues to find the patient and calculate people ahead.
       // For simplicity in a live dashboard, we subscribe to all queues or a specific query.
       // To get people ahead, we need all waiting queues ordered by queueNumber.
-      const { collection, query, orderBy } = await import('firebase/firestore');
       const qQuery = query(collection(db, "queues"), orderBy("queueNumber", "asc"));
 
       unsubQueues = onSnapshot(qQuery, (snapshot) => {
