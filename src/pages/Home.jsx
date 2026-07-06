@@ -11,19 +11,58 @@ export default function Home() {
   const [formData, setFormData] = useState({ name: '', phone: '', complaint: '', targetDate: new Date().toLocaleDateString('en-CA') });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-
   // Tracking State
   const [trackInput, setTrackInput] = useState('');
   const [isTracking, setIsTracking] = useState(false);
   const [trackError, setTrackError] = useState('');
 
+  // Local Session State
+  const [localSession, setLocalSession] = useState(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('qalita_active_queue');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const today = new Date().toLocaleDateString('en-CA');
+        if (parsed.targetDate >= today) {
+          setLocalSession(parsed);
+        } else {
+          localStorage.removeItem('qalita_active_queue');
+        }
+      } catch (e) {
+        localStorage.removeItem('qalita_active_queue');
+      }
+    }
+  }, []);
+
   const handleRegister = async (e) => {
     e.preventDefault();
+
+    // Session Rate Limiting (Mitigasi Spam)
+    const saved = localStorage.getItem('qalita_active_queue');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.targetDate === formData.targetDate) {
+          setError(`Perangkat ini telah mendaftar antrean untuk tanggal ${formData.targetDate}. Satu perangkat fisik hanya dapat mendaftar maksimal 1 kali per hari.`);
+          return;
+        }
+      } catch (e) {}
+    }
+
     setIsSubmitting(true);
     setError('');
 
     try {
       const newData = await addQueue(formData);
+      
+      // Save Session Mirroring (Mitigasi Typo)
+      localStorage.setItem('qalita_active_queue', JSON.stringify({
+        queueCode: newData.queueCode,
+        targetDate: newData.targetDate
+      }));
+
       navigate(`/queue/${newData.queueCode}`);
     } catch (err) {
       setError(err.message || 'Terjadi kesalahan. Silakan coba lagi.');
@@ -48,6 +87,10 @@ export default function Home() {
       }
 
       if (queue) {
+        localStorage.setItem('qalita_active_queue', JSON.stringify({
+          queueCode: queue.queueCode,
+          targetDate: queue.targetDate || new Date().toLocaleDateString('en-CA')
+        }));
         navigate(`/queue/${queue.queueCode}`);
       } else {
         setTrackError("Antrean tidak ditemukan. Pastikan nomor/kode sudah benar.");
@@ -93,6 +136,18 @@ export default function Home() {
         {/* Tabbed Interactive Card */}
         <div className="w-full bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-500">
           
+          {localSession && (
+            <div className="bg-emerald-50 border-b border-emerald-100 p-6 flex flex-col items-center justify-center text-center">
+              <span className="text-emerald-800 font-bold mb-3 text-sm">Sesi Tiket Aktif Ditemukan di Perangkat Anda:</span>
+              <button 
+                onClick={() => navigate(`/queue/${localSession.queueCode}`)}
+                className="bg-emerald-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-emerald-700 transition shadow-lg shadow-emerald-500/30 flex items-center gap-2 active:scale-95"
+              >
+                Lanjutkan Pantau Antrean ({localSession.queueCode}) <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Tab Switcher */}
           <div className="flex p-2 bg-gray-50/50 border-b border-gray-100">
             <button 
