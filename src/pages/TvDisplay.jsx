@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { subscribeToQueues } from '../firebase/db';
+import { subscribeToQueues, subscribeToConfig } from '../firebase/db';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
 export default function TvDisplay() {
   const [queues, setQueues] = useState([]);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [config, setConfig] = useState({});
 
   useEffect(() => {
-    const unsub = subscribeToQueues(setQueues);
+    const unsubQueues = subscribeToQueues(setQueues);
+    const unsubConfig = subscribeToConfig(setConfig);
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => {
-      unsub();
+      unsubQueues();
+      unsubConfig();
       clearInterval(timer);
     };
   }, []);
@@ -36,6 +38,20 @@ export default function TvDisplay() {
   return (
     <div className="fixed inset-0 bg-gray-900 text-white flex overflow-hidden font-sans">
       
+      {/* Pause Overlay */}
+      {config?.isPaused && (
+        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-500">
+          <div className="bg-amber-500/10 border border-amber-500/30 p-16 rounded-[3rem] text-center max-w-4xl shadow-2xl">
+            <svg className="w-32 h-32 text-amber-500 mx-auto mb-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h1 className="text-6xl font-black text-amber-400 mb-6 tracking-tight">Klinik Sedang Istirahat</h1>
+            <p className="text-2xl text-amber-100/80 font-medium leading-relaxed">
+              Pelayanan sedang dijeda sementara.<br/>
+              Estimasi waktu istirahat sekitar <span className="font-bold text-amber-400">20 Menit</span>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Left Panel - Current Serving (Big) */}
       <div className="w-2/3 h-full flex flex-col items-center justify-center relative p-12 bg-gradient-to-br from-emerald-800 to-gray-900 border-r border-emerald-900/50">
         <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-600/20 via-transparent to-transparent"></div>

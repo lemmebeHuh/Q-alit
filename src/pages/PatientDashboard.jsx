@@ -182,6 +182,21 @@ export default function PatientDashboard() {
         <div className="w-10"></div>
       </div>
 
+      {/* Break Banner */}
+      {config?.isPaused && (
+        <div className="bg-amber-100 text-amber-800 p-4 rounded-2xl flex items-center gap-4 border border-amber-300 mb-6 shadow-sm animate-in fade-in slide-in-from-top-4">
+          <div className="bg-amber-200 text-amber-700 p-3 rounded-xl shrink-0">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 11V9a2 2 0 00-2-2m2 4v4a2 2 0 104 0v-1m-4-3H9m2 0h4m6 1a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <div>
+            <p className="font-bold text-sm uppercase tracking-widest mb-1">Klinik Sedang Istirahat</p>
+            <p className="font-medium text-xs leading-relaxed opacity-90">
+              Pelayanan sedang dijeda sementara. Estimasi waktu istirahat sekitar <span className="font-bold">20 menit</span>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Main Ticket Card */}
       <div className={`relative rounded-[2.5rem] shadow-2xl overflow-hidden transition-all duration-700 mb-6 ${isServing ? 'bg-gradient-to-br from-orange-500 to-red-600 scale-[1.02] shadow-orange-500/40' :
           isCompleted ? 'bg-gradient-to-br from-gray-700 to-gray-900' :
