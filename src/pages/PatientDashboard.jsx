@@ -19,18 +19,34 @@ export default function PatientDashboard() {
   const [totalWaiting, setTotalWaiting] = useState(0);
 
   useEffect(() => {
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+    try {
+      if ('Notification' in window && Notification.permission === 'default') {
+        const promise = Notification.requestPermission();
+        if (promise) promise.catch(e => console.log(e));
+      }
+    } catch (error) {
+      console.log('Failed to request notification permission:', error);
     }
   }, []);
 
   const sendPushNotification = (title, options) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, {
-        icon: '/vite.svg',
-        ...options
-      });
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification(title, {
+              icon: '/pwa-192x192.png',
+              ...options
+            }).catch(err => {
+              new Notification(title, { icon: '/pwa-192x192.png', ...options });
+            });
+          });
+        } else {
+          new Notification(title, { icon: '/pwa-192x192.png', ...options });
+        }
+      }
+    } catch (error) {
+      console.log('Push notification failed:', error);
     }
   };
 
