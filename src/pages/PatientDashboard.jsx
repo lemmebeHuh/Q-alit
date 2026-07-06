@@ -114,6 +114,7 @@ export default function PatientDashboard() {
     if (window.confirm("Apakah Anda yakin ingin membatalkan antrean? Anda tidak dapat mengembalikan tindakan ini.")) {
       try {
         await cancelQueue(tracking.id);
+        localStorage.removeItem('qalita_active_queue');
       } catch (error) {
         alert("Gagal membatalkan antrean.");
       }
