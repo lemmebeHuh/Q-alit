@@ -166,7 +166,7 @@ export const addQueue = async (patientData) => {
     qSnapshot.forEach(doc => {
       totalQueues++;
       const data = doc.data();
-      if (data.phone === patientData.phone && (data.status === 'waiting' || data.status === 'in_progress' || data.status === 'skipped')) {
+      if (data.phone === patientData.phone && data.status !== 'cancelled') {
         alreadyRegistered = true;
       }
       if (data.status === 'waiting' || data.status === 'in_progress') {
@@ -288,8 +288,7 @@ export const resetDailySystem = async () => {
     }
 
     const batch = writeBatch(db);
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
+    const dateStr = getTodayStr();
     const totalPatients = queuesToArchive.length;
     const complaints = {};
     

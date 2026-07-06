@@ -157,7 +157,8 @@ export default function PatientDashboard() {
     );
   }
 
-  const isAlmostTurn = peopleAhead <= 3;
+  const isFuture = patientData.targetDate && patientData.targetDate > getTodayStr();
+  const isAlmostTurn = !isFuture && peopleAhead !== null && peopleAhead <= 3;
   const isServing = tracking.status === 'in_progress';
   const isCompleted = tracking.status === 'completed';
   const isSkipped = tracking.status === 'skipped';
@@ -168,7 +169,6 @@ export default function PatientDashboard() {
 
   // Calculate Progress Percentage (0 to 100)
   const progressPercent = isServing ? 100 : (isWaiting && totalWaiting > 0 ? Math.max(5, ((totalWaiting - peopleAhead) / totalWaiting) * 100) : 0);
-  const isFuture = patientData.targetDate && patientData.targetDate > getTodayStr();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-md mx-auto p-4 sm:p-6 font-sans relative">
@@ -202,6 +202,7 @@ export default function PatientDashboard() {
           isCompleted ? 'bg-gradient-to-br from-gray-700 to-gray-900' :
             isSkipped ? 'bg-gradient-to-br from-rose-600 to-red-800' :
               isCancelled ? 'bg-gradient-to-br from-gray-400 to-gray-600' :
+                isFuture ? 'bg-gradient-to-br from-blue-500 to-indigo-700 shadow-blue-500/30' :
                 isAlmostTurn ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/30' :
                   'bg-gradient-to-br from-emerald-500 to-teal-700'
         }`}>
@@ -227,13 +228,14 @@ export default function PatientDashboard() {
               isCompleted ? 'bg-white text-gray-800' :
                 isSkipped ? 'bg-white text-rose-600' :
                   isCancelled ? 'bg-gray-200 text-gray-600' :
+                    isFuture ? 'bg-white text-blue-600' :
                     isAlmostTurn ? 'bg-white text-amber-600' :
                       'bg-emerald-800/80 text-white border border-emerald-400/30'
             }`}>
             {isServing && <BellRing className="w-4 h-4" />}
             {isAlmostTurn && isWaiting && <Flame className="w-4 h-4" />}
             {isSkipped && <AlertCircle className="w-4 h-4" />}
-            {isServing ? 'SILAKAN MASUK' : isCompleted ? 'SELESAI' : isSkipped ? 'DILEWATI' : isCancelled ? 'DIBATALKAN' : isAlmostTurn ? 'HAMPIR GILIRAN ANDA!' : 'TUNGGU DI LUAR'}
+            {isServing ? 'SILAKAN MASUK' : isCompleted ? 'SELESAI' : isSkipped ? 'DILEWATI' : isCancelled ? 'DIBATALKAN' : isFuture ? 'MENUNGGU HARI H' : isAlmostTurn ? 'HAMPIR GILIRAN ANDA!' : 'TUNGGU DI LUAR'}
           </div>
           <p className="text-white/90 font-medium text-sm mt-4">{patientData.name}</p>
         </div>

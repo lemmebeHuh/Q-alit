@@ -737,19 +737,25 @@ export default function AdminDashboard() {
                   {chartData.length === 0 ? (
                     <div className="py-20 text-center text-gray-400">Belum ada data tercatat.</div>
                   ) : (
-                    <div className="h-[250px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
-                          <Tooltip 
-                            cursor={{fill: '#f8fafc'}}
-                            contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)'}}
-                          />
-                          <Bar dataKey="Jumlah" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <div className="space-y-5 mt-2">
+                      {chartData.map((item, index) => {
+                        const maxCount = chartData[0].Jumlah;
+                        const percentage = (item.Jumlah / maxCount) * 100;
+                        return (
+                          <div key={index} className="relative group">
+                            <div className="flex justify-between items-end mb-1.5">
+                              <span className="font-bold text-gray-700 text-sm truncate pr-4 group-hover:text-indigo-600 transition-colors">{item.fullName}</span>
+                              <span className="font-black text-indigo-600 text-sm shrink-0 bg-indigo-50 px-2 py-0.5 rounded-md">{item.Jumlah} <span className="text-[10px] font-bold text-indigo-400">Kasus</span></span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                              <div 
+                                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2.5 rounded-full transition-all duration-1000 ease-out" 
+                                style={{ width: `${percentage}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
