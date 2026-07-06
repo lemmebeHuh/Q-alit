@@ -1,6 +1,6 @@
 import { 
   collection, doc, onSnapshot, runTransaction, 
-  setDoc, addDoc, serverTimestamp, query, orderBy, getDocs, writeBatch, where, updateDoc
+  setDoc, addDoc, serverTimestamp, query, orderBy, getDocs, writeBatch, where, updateDoc, getDoc
 } from "firebase/firestore";
 import { db } from "./config";
 import { addMinutes } from "date-fns";
@@ -8,6 +8,51 @@ import { addMinutes } from "date-fns";
 // Collections
 const queuesRef = collection(db, "queues");
 const configRef = doc(db, "system_config", "main");
+
+export const callInitialBatch = async (count = 20) => {
+  return runTransaction(db, async (transaction) => {
+    const configSnap = await transaction.get(configRef);
+    if (!configSnap.exists()) throw new Error("Config not found");
+    const config = configSnap.data();
+
+    if (config.isPaused) {
+      throw new Error('Sistem sedang dalam mode istirahat. Harap lanjutkan sistem terlebih dahulu.');
+    }
+
+    if (config.currentCapacity >= 20) {
+      throw new Error('Kapasitas Penuh.');
+    }
+
+    // Find the waiting patients
+    const qSnapshot = await getDocs(query(queuesRef, orderBy("queueNumber", "asc")));
+    let waitingDocs = [];
+    qSnapshot.forEach(docSnap => {
+      if (docSnap.data().status === 'waiting') {
+        waitingDocs.push(docSnap);
+      }
+    });
+
+    const docsToCall = waitingDocs.slice(0, count);
+    const capacityToAdd = docsToCall.length;
+
+    if (capacityToAdd === 0) {
+      throw new Error('Tidak ada antrean menunggu.');
+    }
+
+    if (config.currentCapacity + capacityToAdd > 20) {
+      throw new Error(`Tidak bisa memanggil ${capacityToAdd} pasien. Kapasitas tersisa: ${20 - config.currentCapacity}`);
+    }
+
+    docsToCall.forEach(docSnap => {
+      transaction.update(docSnap.ref, { 
+        status: 'in_progress',
+        startedAt: serverTimestamp()
+      });
+    });
+
+    transaction.update(configRef, { currentCapacity: config.currentCapacity + capacityToAdd });
+  });
+};
 
 export const subscribeToQueues = (callback) => {
   const q = query(queuesRef, orderBy("queueNumber", "asc"));
@@ -22,7 +67,7 @@ export const subscribeToConfig = (callback) => {
     if (docSnap.exists()) {
       callback(docSnap.data());
     } else {
-      callback({ currentCapacity: 0, alpha: 0.3, lastPrediction: 15, lastDuration: 15 });
+      callback({ currentCapacity: 0, alpha: 0.3, lastPrediction: 15, lastDuration: 15, isPaused: false });
     }
   });
 };
@@ -266,6 +311,10 @@ export const callNextPatient = async () => {
     if (!configSnap.exists()) throw new Error("Config not found");
     const config = configSnap.data();
 
+    if (config.isPaused) {
+      throw new Error('Sistem sedang dalam mode istirahat. Harap lanjutkan sistem terlebih dahulu.');
+    }
+
     if (config.currentCapacity >= 20) {
       throw new Error('Kapasitas Penuh (20/20).');
     }
@@ -303,12 +352,33 @@ export const finishPatient = async (id, actualDurationMins = null) => {
     // Update capacity
     const newCapacity = Math.max(0, config.currentCapacity - 1);
 
+    const now = new Date();
+
     // Calculate actual duration
     let calculatedDuration = null;
     if (patientData.startedAt) {
-      const startTime = patientData.startedAt.toDate ? patientData.startedAt.toDate() : new Date(patientData.startedAt);
-      const diffMs = new Date() - startTime;
+      const patientStartTime = patientData.startedAt.toDate ? patientData.startedAt.toDate() : new Date(patientData.startedAt);
+      
+      let effectiveStartTime = patientStartTime;
+      if (config.lastCompletedAt) {
+        const lastCompletedTime = config.lastCompletedAt.toDate ? config.lastCompletedAt.toDate() : new Date(config.lastCompletedAt);
+        // Gunakan waktu selesai pasien sebelumnya sebagai start time pasien saat ini 
+        // (jika pasien sebelumnya selesai lebih akhir daripada waktu pasien ini dipanggil masuk).
+        // Ini mensimulasikan fakta bahwa Pak Alit melayani berurutan dari kursi ke kursi.
+        if (lastCompletedTime > patientStartTime) {
+          effectiveStartTime = lastCompletedTime;
+        }
+      }
+
+      const diffMs = now - effectiveStartTime;
       calculatedDuration = Math.max(1, Math.round(diffMs / 60000));
+      
+      // MITIGASI HUMAN ERROR: Outlier Rejection / Clamping
+      // Jika Admin telat menekan tombol dan waktu terhitung lebih dari 30 menit 
+      // (yang mana tidak wajar untuk 1 pasien), sistem akan memangkasnya menjadi nilai batas wajar.
+      if (calculatedDuration > 30) {
+        calculatedDuration = 30; // Angka wajar maksimal
+      }
     }
 
     // SES Algorithm
@@ -330,17 +400,28 @@ export const finishPatient = async (id, actualDurationMins = null) => {
     transaction.update(configRef, { 
       currentCapacity: newCapacity,
       lastDuration: Xt,
-      lastPrediction: St
+      lastPrediction: St,
+      lastCompletedAt: serverTimestamp()
     });
 
     // Update remaining waiting patients' estimated time
-    let accumulatedMins = St;
+    // LOGIC FIX: Kita harus menghitung jumlah orang di depan mereka yang berstatus 'in_progress' atau 'waiting'.
+    // Jika kita mengabaikan 'in_progress', waktu tunggu antrean di luar akan langsung drop drastis.
+    let remainingAhead = 1; 
     qSnapshot.forEach(docSnap => {
       const data = docSnap.data();
-      if (data.status === 'waiting' && docSnap.id !== id) {
-        const newEstimatedTime = addMinutes(new Date(), Math.round(accumulatedMins)).toISOString();
-        transaction.update(docSnap.ref, { estimatedTime: newEstimatedTime });
-        accumulatedMins += St;
+      // Kita hanya peduli pada pasien yang masih antre atau sedang dilayani (kecuali pasien yang sedang kita finish ini)
+      if ((data.status === 'in_progress' || data.status === 'waiting') && docSnap.id !== id) {
+        
+        // Kita hanya perlu meng-update UI estimasi waktu untuk pasien yang 'waiting' (di luar)
+        if (data.status === 'waiting') {
+          const estimatedWaitMins = remainingAhead * St;
+          const newEstimatedTime = addMinutes(new Date(), Math.round(estimatedWaitMins)).toISOString();
+          transaction.update(docSnap.ref, { estimatedTime: newEstimatedTime });
+        }
+        
+        // Tambahkan jumlah orang di depan untuk pasien berikutnya di iterasi ini
+        remainingAhead++;
       }
     });
   });
@@ -375,6 +456,42 @@ export const cancelQueue = async (patientId) => {
 export const restoreQueue = async (patientId) => {
   const patientRef = doc(db, "queues", patientId);
   await updateDoc(patientRef, { status: "waiting" });
+};
+
+export const toggleSystemBreak = async (isPaused) => {
+  if (isPaused) {
+    await updateDoc(configRef, { isPaused: true, pausedAt: serverTimestamp() });
+  } else {
+    // 1. Get current config for St
+    const configSnap = await getDoc(configRef);
+    const config = configSnap.exists() ? configSnap.data() : {};
+    const St = config.lastPrediction || 15;
+
+    // 2. Setup batch
+    const batch = writeBatch(db);
+    batch.update(configRef, { 
+      isPaused: false, 
+      lastCompletedAt: serverTimestamp() 
+    });
+
+    // 3. Get all active queues to recalculate estimated times based on the current time (Resume time)
+    const qSnapshot = await getDocs(query(queuesRef, orderBy("queueNumber", "asc")));
+    let remainingAhead = 1;
+
+    qSnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.status === 'in_progress' || data.status === 'waiting') {
+        if (data.status === 'waiting') {
+          const estimatedWaitMins = remainingAhead * St;
+          const newEstimatedTime = addMinutes(new Date(), Math.round(estimatedWaitMins)).toISOString();
+          batch.update(docSnap.ref, { estimatedTime: newEstimatedTime });
+        }
+        remainingAhead++;
+      }
+    });
+
+    await batch.commit();
+  }
 };
 
 // Fungsi ini cuma dipakai jika db masih kosong untuk init config

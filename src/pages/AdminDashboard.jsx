@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { subscribeToQueues, subscribeToConfig, callNextPatient, finishPatient, skipPatient, restoreQueue, addQueue, getPatients, getPatientHistory, resetDailySystem, getHistoryByDateRange } from '../firebase/db';
-import { Users, CheckCircle, SkipForward, Play, AlertTriangle, UserPlus, List, Search, History, ChevronLeft, LayoutDashboard, Clock, Power, BarChart2, Download, Calendar } from 'lucide-react';
+import { subscribeToQueues, subscribeToConfig, callNextPatient, callInitialBatch, finishPatient, skipPatient, restoreQueue, addQueue, getPatients, getPatientHistory, resetDailySystem, getHistoryByDateRange, toggleSystemBreak } from '../firebase/db';
+import { Users, CheckCircle, SkipForward, Play, AlertTriangle, UserPlus, List, Search, History, ChevronLeft, LayoutDashboard, Clock, Power, BarChart2, Download, Calendar, Coffee } from 'lucide-react';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import * as XLSX from 'xlsx';
@@ -10,7 +10,7 @@ export default function AdminDashboard() {
 
   // Queue State
   const [queues, setQueues] = useState([]);
-  const [config, setConfig] = useState({ currentCapacity: 0, lastPrediction: 15 });
+  const [config, setConfig] = useState({ currentCapacity: 0, lastPrediction: 15, isPaused: false });
   const [showWalkIn, setShowWalkIn] = useState(false);
   const [walkInData, setWalkInData] = useState({ name: '', phone: '', complaint: '' });
 
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   onClick={handleCallNext}
-                  disabled={isFull || waitingList.length === 0}
+                  disabled={isFull || waitingList.length === 0 || config.isPaused}
                   className="ml-auto flex items-center justify-center w-12 h-12 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-95 disabled:opacity-50 disabled:active:scale-100 transition-all shadow-lg shadow-emerald-600/20"
                 >
                   <Play className="w-5 h-5 fill-current" />
@@ -235,10 +235,20 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {isFull && (
+          {isFull && !config.isPaused && (
             <div className="bg-red-50 text-red-700 p-4 rounded-2xl flex items-center gap-3 border border-red-200 animate-pulse">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <p className="font-medium text-sm">Kapasitas kursi penuh! Pasien tidak dapat dipanggil masuk hingga ada yang selesai.</p>
+            </div>
+          )}
+
+          {config.isPaused && (
+            <div className="bg-amber-100 text-amber-800 p-4 rounded-2xl flex items-center gap-3 border border-amber-300">
+              <Coffee className="w-6 h-6 shrink-0" />
+              <div>
+                <p className="font-bold text-sm uppercase tracking-widest mb-0.5">Klinik Sedang Istirahat</p>
+                <p className="font-medium text-sm opacity-90">Sistem dijeda sementara. Estimasi waktu antrean di luar telah dibekukan dan akan dihitung ulang secara otomatis saat istirahat selesai.</p>
+              </div>
             </div>
           )}
 
@@ -268,6 +278,32 @@ export default function AdminDashboard() {
               >
                 Seed 40 Data (Test)
               </button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await toggleSystemBreak(!config.isPaused);
+                    } catch (e) {
+                      alert(e.message);
+                    }
+                  }} 
+                  className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all w-full sm:w-auto ${config.isPaused ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-500/30' : 'bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100'}`}
+                >
+                  <Coffee className="w-4 h-4" /> {config.isPaused ? 'Selesai Istirahat' : 'Mulai Istirahat'}
+                </button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await callInitialBatch(20);
+                      alert("20 pasien pertama berhasil dipanggil!");
+                    } catch (e) {
+                      alert(e.message);
+                    }
+                  }} 
+                  disabled={config.isPaused}
+                  className="flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-600 px-4 py-2.5 rounded-xl hover:bg-emerald-100 text-sm font-bold shadow-sm transition-colors w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Panggil 20 Pasien
+                </button>
               <button onClick={() => setShowWalkIn(!showWalkIn)} className="flex items-center justify-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 text-sm font-bold shadow-lg shadow-gray-900/20 transition-all active:scale-95 w-full sm:w-auto">
                 <UserPlus className="w-4 h-4" /> {showWalkIn ? 'Batal' : 'Daftar Walk-in'}
               </button>
@@ -324,10 +360,10 @@ export default function AdminDashboard() {
                       <p className="text-sm text-gray-500 mt-1 font-medium">{q.complaint}</p>
                     </div>
                     <div className="w-full sm:w-auto flex items-center gap-2">
-                      <button onClick={() => skipPatient(q.id)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white px-4 py-2.5 rounded-xl font-bold transition-colors">
+                      <button onClick={() => skipPatient(q.id)} disabled={config.isPaused} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white px-4 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         Lewati
                       </button>
-                      <button onClick={() => handleFinish(q.id)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white px-5 py-2.5 rounded-xl font-bold transition-colors">
+                      <button onClick={() => handleFinish(q.id)} disabled={config.isPaused} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white px-5 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         <CheckCircle className="w-5 h-5" /> Selesai
                       </button>
                     </div>
