@@ -9,7 +9,13 @@ import { addMinutes } from "date-fns";
 const queuesRef = collection(db, "queues");
 const configRef = doc(db, "system_config", "main");
 
-export const getTodayStr = () => new Date().toLocaleDateString('en-CA');
+export const getTodayStr = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 export const callInitialBatch = async (count = 20) => {
   return runTransaction(db, async (transaction) => {

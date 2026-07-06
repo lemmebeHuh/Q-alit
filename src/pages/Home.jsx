@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addQueue, getQueueByPhone, getQueueByCode } from '../firebase/db';
+import { addQueue, getQueueByPhone, getQueueByCode, getTodayStr } from '../firebase/db';
 import { ArrowRight, Search, Activity, Clock, Users, Phone, Calendar } from 'lucide-react';
 
 export default function Home() {
@@ -8,7 +8,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('daftar'); // 'daftar' | 'lacak'
   
   // Register State
-  const [formData, setFormData] = useState({ name: '', phone: '', complaint: '', targetDate: new Date().toLocaleDateString('en-CA') });
+  const [formData, setFormData] = useState({ name: '', phone: '', complaint: '', targetDate: getTodayStr() });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   // Tracking State
@@ -24,7 +24,7 @@ export default function Home() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const today = new Date().toLocaleDateString('en-CA');
+        const today = getTodayStr();
         if (parsed.targetDate >= today) {
           setLocalSession(parsed);
         } else {
@@ -89,7 +89,7 @@ export default function Home() {
       if (queue) {
         localStorage.setItem('qalita_active_queue', JSON.stringify({
           queueCode: queue.queueCode,
-          targetDate: queue.targetDate || new Date().toLocaleDateString('en-CA')
+          targetDate: queue.targetDate || getTodayStr()
         }));
         navigate(`/queue/${queue.queueCode}`);
       } else {
@@ -205,7 +205,7 @@ export default function Home() {
                     <input
                       type="date"
                       required
-                      min={new Date().toLocaleDateString('en-CA')}
+                      min={getTodayStr()}
                       value={formData.targetDate}
                       onChange={(e) => setFormData({...formData, targetDate: e.target.value})}
                       className="w-full border-2 border-gray-300 bg-white p-4 pl-12 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium text-gray-800"
