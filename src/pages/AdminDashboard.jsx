@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { subscribeToQueues, subscribeToFutureBookings, subscribeToConfig, callNextPatient, callInitialBatch, finishPatient, skipPatient, restoreQueue, addQueue, getPatients, getPatientHistory, resetDailySystem, getHistoryByDateRange, toggleSystemBreak, getTodayStr, patchLegacyQueues } from '../firebase/db';
+import { subscribeToQueues, subscribeToFutureBookings, subscribeToConfig, callNextPatient, callInitialBatch, finishPatient, skipPatient, restoreQueue, addQueue, getPatients, getPatientHistory, resetDailySystem, getHistoryByDateRange, toggleSystemBreak, getTodayStr, patchLegacyQueues, getUnverifiedPatients, verifyPatientProfile } from '../firebase/db';
 import { Users, CheckCircle, SkipForward, Play, AlertTriangle, UserPlus, List, Search, History, ChevronLeft, LayoutDashboard, Clock, Power, BarChart2, Download, Calendar, Coffee } from 'lucide-react';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import * as XLSX from 'xlsx';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'directory' | 'analytics'
+  const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'booking' | 'directory' | 'analytics' | 'verification'
 
   // Queue State
   const [queues, setQueues] = useState([]);
@@ -21,6 +21,10 @@ export default function AdminDashboard() {
   const [patientHistory, setPatientHistory] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  // Verification State
+  const [unverifiedPatients, setUnverifiedPatients] = useState([]);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Analytics State
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -43,8 +47,34 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (activeTab === 'directory') {
       getPatients().then(setPatients).catch(console.error);
+    } else if (activeTab === 'verification') {
+      fetchUnverified();
     }
   }, [activeTab]);
+
+  const fetchUnverified = async () => {
+    try {
+      const data = await getUnverifiedPatients();
+      setUnverifiedPatients(data);
+    } catch (error) {
+      console.error("Error fetching unverified:", error);
+    }
+  };
+
+  const handleVerifyPatient = async (phone) => {
+    if (window.confirm("Apakah Anda yakin telah menerima WhatsApp konfirmasi dari nomor ini?")) {
+      setIsVerifying(true);
+      try {
+        await verifyPatientProfile(phone);
+        await fetchUnverified(); // Refresh list
+        alert("Pasien berhasil diverifikasi! Sekarang mereka bisa mengambil antrean berobat.");
+      } catch (error) {
+        alert("Gagal memverifikasi pasien: " + error.message);
+      } finally {
+        setIsVerifying(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'analytics') {
@@ -194,9 +224,68 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab('analytics')}
           className={`flex-1 py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all relative z-10 ${activeTab === 'analytics' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
         >
-          <BarChart2 className="w-4 h-4" /> Laporan & Analitik
+          <BarChart2 className="w-4 h-4" /> Laporan
+        </button>
+        <button 
+          onClick={() => setActiveTab('verification')}
+          className={`flex-1 py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all relative z-10 ${activeTab === 'verification' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'}`}
+        >
+          <UserPlus className="w-4 h-4" /> Verifikasi Pasien
         </button>
       </div>
+
+      {/* TAB: VERIFICATION */}
+      {activeTab === 'verification' && (
+        <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+            <div className="relative z-10">
+              <h2 className="text-3xl font-black text-gray-800 mb-2">Verifikasi Pasien Baru</h2>
+              <p className="text-gray-500 text-sm max-w-lg mb-8">Daftar pasien baru yang mendaftar melalui PWA dan menunggu konfirmasi WhatsApp. Klik setujui jika Anda telah menerima chat WhatsApp dari nomor tersebut.</p>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="py-4 font-bold text-gray-400 text-sm tracking-wider uppercase">Nama Pasien</th>
+                      <th className="py-4 font-bold text-gray-400 text-sm tracking-wider uppercase">No WhatsApp</th>
+                      <th className="py-4 font-bold text-gray-400 text-sm tracking-wider uppercase">Tanggal Daftar</th>
+                      <th className="py-4 font-bold text-gray-400 text-sm tracking-wider uppercase text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unverifiedPatients.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="py-12 text-center text-gray-400 font-medium">Tidak ada pasien yang menunggu verifikasi.</td>
+                      </tr>
+                    ) : (
+                      unverifiedPatients.map((patient) => (
+                        <tr key={patient.phone} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
+                          <td className="py-4 font-bold text-gray-800">{patient.name}</td>
+                          <td className="py-4 font-bold text-gray-600">{patient.phone}</td>
+                          <td className="py-4 text-gray-500 text-sm">
+                            {patient.registeredAt?.seconds ? format(new Date(patient.registeredAt.seconds * 1000), 'dd-MM-yyyy HH:mm') : '-'}
+                          </td>
+                          <td className="py-4 text-right">
+                            <button
+                              onClick={() => handleVerifyPatient(patient.phone)}
+                              disabled={isVerifying}
+                              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-xl transition-all shadow-md active:scale-95 text-sm inline-flex items-center gap-2"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Setujui
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: LIVE QUEUE */}
       {activeTab === 'queue' && (

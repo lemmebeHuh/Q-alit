@@ -162,6 +162,22 @@ export const addQueue = async (patientData) => {
     const todayDateStr = getTodayStr();
     const targetDate = patientData.targetDate || todayDateStr;
 
+    // Check if patient exists AND is verified
+    const patientRef = doc(db, "patients", patientData.phone);
+    const patientSnap = await transaction.get(patientRef);
+    
+    if (!patientSnap.exists()) {
+      throw new Error(`Nomor ${patientData.phone} belum terdaftar. Silakan lakukan 'Pendaftaran Profil Baru' terlebih dahulu.`);
+    }
+    
+    const existingPatient = patientSnap.data();
+    if (existingPatient.status !== 'verified') {
+      throw new Error(`Profil Anda masih berstatus Menunggu Verifikasi. Silakan hubungi Admin via WhatsApp.`);
+    }
+    
+    // Validasi nama tidak lagi diperlukan saat ambil antrean 
+    // karena nama sudah terikat pada nomor HP saat pembuatan profil.
+
     // 1. Cek apakah pasien sudah mendaftar di tanggal yang sama (targetDate)
     const activeQueuesQuery = query(queuesRef, where("targetDate", "==", targetDate));
     const qSnapshot = await getDocs(activeQueuesQuery);
@@ -186,35 +202,15 @@ export const addQueue = async (patientData) => {
       throw new Error(`Pasien dengan nomor ${patientData.phone} sudah terdaftar untuk tanggal ${targetDate}.`);
     }
 
-    // Update profil pasien
-    const patientRef = doc(db, "patients", patientData.phone);
-    const patientSnap = await transaction.get(patientRef);
-    if (patientSnap.exists()) {
-      const existingName = patientSnap.data().name;
-      // Validasi kepemilikan: Nomor HP hanya boleh dipakai oleh 1 Nama
-      if (existingName.toLowerCase().trim() !== patientData.name.toLowerCase().trim()) {
-        const maskedName = existingName.substring(0, 3) + "***";
-        throw new Error(`Nomor telepon ini telah terdaftar atas nama ${maskedName}. Harap gunakan nama asli pendaftar awal atau gunakan nomor telepon lain.`);
-      }
-    }
-
     const configSnap = await transaction.get(configRef);
     let config = configSnap.exists() ? configSnap.data() : { lastPrediction: 15, currentCapacity: 0 };
     
     // --- ALL READS DONE --- //
 
-    if (!patientSnap.exists()) {
-      transaction.set(patientRef, {
-        name: patientData.name,
-        phone: patientData.phone,
-        firstVisit: serverTimestamp(),
-        lastVisitDate: targetDate
-      });
-    } else {
-      transaction.update(patientRef, {
-        lastVisitDate: targetDate
-      });
-    }
+    // Update profil pasien
+    transaction.update(patientRef, {
+      lastVisitDate: targetDate
+    });
 
     const newQueueNumber = totalQueues + 1;
     const queueCode = `A-${newQueueNumber.toString().padStart(3, '0')}-${patientData.phone.slice(-4)}`;
@@ -243,6 +239,40 @@ export const addQueue = async (patientData) => {
     transaction.set(newDocRef, newData);
     return newData;
   });
+};
+
+export const registerNewPatient = async (name, phone) => {
+  return runTransaction(db, async (transaction) => {
+    const patientRef = doc(db, "patients", phone);
+    const patientSnap = await transaction.get(patientRef);
+    
+    if (patientSnap.exists()) {
+      throw new Error(`Nomor telepon ${phone} sudah terdaftar sebelumnya.`);
+    }
+
+    transaction.set(patientRef, {
+      name: name,
+      phone: phone,
+      status: 'unverified',
+      registeredAt: serverTimestamp()
+    });
+    
+    return true;
+  });
+};
+
+export const verifyPatientProfile = async (phone) => {
+  const patientRef = doc(db, "patients", phone);
+  await updateDoc(patientRef, {
+    status: 'verified',
+    verifiedAt: serverTimestamp()
+  });
+};
+
+export const getUnverifiedPatients = async () => {
+  const q = query(collection(db, "patients"), where("status", "==", "unverified"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
 export const getPatients = async () => {

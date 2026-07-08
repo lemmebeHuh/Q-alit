@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addQueue, getQueueByPhone, getQueueByCode, getTodayStr } from '../firebase/db';
-import { ArrowRight, Search, Activity, Clock, Users, Phone, Calendar } from 'lucide-react';
+import { addQueue, getQueueByPhone, getQueueByCode, getTodayStr, registerNewPatient } from '../firebase/db';
+import { ArrowRight, Search, Activity, Clock, Users, Phone, Calendar, UserPlus, CheckCircle2 } from 'lucide-react';
 
 export default function Home() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('daftar'); // 'daftar' | 'lacak'
+  const [activeTab, setActiveTab] = useState('daftar'); // 'profil' | 'daftar' | 'lacak'
   
-  // Register State
-  const [formData, setFormData] = useState({ name: '', phone: '', complaint: '', targetDate: getTodayStr() });
+  // Profile State
+  const [profileData, setProfileData] = useState({ name: '', phone: '' });
+  const [isRegisteringProfile, setIsRegisteringProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState(false);
+
+  // Booking State
+  const [formData, setFormData] = useState({ phone: '', complaint: '', targetDate: getTodayStr() });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
   // Tracking State
   const [trackInput, setTrackInput] = useState('');
   const [isTracking, setIsTracking] = useState(false);
@@ -35,6 +42,22 @@ export default function Home() {
       }
     }
   }, []);
+
+  const handleRegisterProfile = async (e) => {
+    e.preventDefault();
+    setIsRegisteringProfile(true);
+    setProfileError('');
+    setProfileSuccess(false);
+
+    try {
+      await registerNewPatient(profileData.name, profileData.phone);
+      setProfileSuccess(true);
+    } catch (err) {
+      setProfileError(err.message || 'Gagal mendaftar. Silakan coba lagi.');
+    } finally {
+      setIsRegisteringProfile(false);
+    }
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -149,41 +172,106 @@ export default function Home() {
           )}
 
           {/* Tab Switcher */}
-          <div className="flex p-2 bg-gray-50/50 border-b border-gray-100">
+          <div className="flex p-2 bg-gray-50/50 border-b border-gray-100 overflow-x-auto whitespace-nowrap">
+            <button 
+              onClick={() => setActiveTab('profil')}
+              className={`flex-1 py-4 px-4 text-sm font-bold rounded-2xl transition-all ${activeTab === 'profil' ? 'bg-white text-emerald-600 shadow-sm border border-gray-100/50' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              1. Buat Profil
+            </button>
             <button 
               onClick={() => setActiveTab('daftar')}
-              className={`flex-1 py-4 text-sm font-bold rounded-2xl transition-all ${activeTab === 'daftar' ? 'bg-white text-emerald-600 shadow-sm border border-gray-100/50' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex-1 py-4 px-4 text-sm font-bold rounded-2xl transition-all ${activeTab === 'daftar' ? 'bg-white text-teal-600 shadow-sm border border-gray-100/50' : 'text-gray-400 hover:text-gray-600'}`}
             >
-              Daftar Baru
+              2. Ambil Antrean
             </button>
             <button 
               onClick={() => setActiveTab('lacak')}
-              className={`flex-1 py-4 text-sm font-bold rounded-2xl transition-all ${activeTab === 'lacak' ? 'bg-white text-blue-600 shadow-sm border border-gray-100/50' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`flex-1 py-4 px-4 text-sm font-bold rounded-2xl transition-all ${activeTab === 'lacak' ? 'bg-white text-blue-600 shadow-sm border border-gray-100/50' : 'text-gray-400 hover:text-gray-600'}`}
             >
-              Lacak Antrean
+              Lacak
             </button>
           </div>
 
           <div className="p-8">
-            {/* DAFTAR FORM */}
+            {/* PROFIL FORM */}
+            {activeTab === 'profil' && (
+              <form onSubmit={handleRegisterProfile} className="space-y-5 animate-in fade-in slide-in-from-left-4 duration-300">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <UserPlus className="w-8 h-8 text-emerald-500" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-800 mb-1">Daftar Pasien Baru</h3>
+                  <p className="text-sm text-gray-500 font-medium">Belum pernah berobat? Daftarkan profil Anda terlebih dahulu.</p>
+                </div>
+
+                {profileError && (
+                  <div className="bg-red-50 text-red-600 text-sm p-4 rounded-2xl border border-red-100 font-medium text-center">
+                    {profileError}
+                  </div>
+                )}
+                
+                {profileSuccess && (
+                  <div className="bg-amber-50 text-amber-700 text-sm p-6 rounded-3xl border border-amber-200 font-medium text-center shadow-lg shadow-amber-500/10">
+                    <CheckCircle2 className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+                    <h4 className="text-lg font-bold text-amber-800 mb-2">Profil Berhasil Dibuat!</h4>
+                    <p className="mb-4 text-amber-700">Profil Anda masih berstatus <strong className="bg-amber-200 px-2 py-0.5 rounded text-amber-900">Menunggu Verifikasi</strong>. Klik tombol di bawah ini untuk mengirim pesan WA konfirmasi ke Admin agar akun Anda disetujui.</p>
+                    <a 
+                      href={`https://wa.me/6285795603927?text=Halo%20Admin,%20saya%20ingin%20memverifikasi%20profil%20pasien%20baru%20atas%20nama:%20${profileData.name}%20dengan%20nomor%20HP:%20${profileData.phone}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="inline-flex bg-green-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-green-600 transition shadow-md"
+                    >
+                      Konfirmasi via WhatsApp
+                    </a>
+                  </div>
+                )}
+
+                {!profileSuccess && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2 ml-1">Nama Lengkap</label>
+                      <input
+                        type="text" required value={profileData.name}
+                        onChange={(e) => setProfileData({...profileData, name: e.target.value})}
+                        className="w-full border-2 border-gray-300 bg-white p-4 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium text-gray-800 placeholder:text-gray-400"
+                        placeholder="Contoh: Sang Kala Aji"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2 ml-1">No. WhatsApp / HP</label>
+                      <div className="relative">
+                        <Phone className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="tel" required value={profileData.phone}
+                          onChange={(e) => setProfileData({...profileData, phone: e.target.value.replace(/\D/g, '')})}
+                          className="w-full border-2 border-gray-300 bg-white p-4 pl-12 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium text-gray-800 placeholder:text-gray-400"
+                          placeholder="08123456789"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit" disabled={isRegisteringProfile || !profileData.name || !profileData.phone}
+                      className="w-full bg-emerald-600 text-white font-bold text-lg p-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 transition-all shadow-xl shadow-emerald-600/20 mt-4"
+                    >
+                      {isRegisteringProfile ? 'Mendaftarkan...' : 'Daftar Profil Baru'} 
+                    </button>
+                  </>
+                )}
+              </form>
+            )}
+
+            {/* DAFTAR ANTRIAN FORM (BOOKING) */}
             {activeTab === 'daftar' && (
               <form onSubmit={handleRegister} className="space-y-5 animate-in fade-in slide-in-from-left-4 duration-300">
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-black text-gray-800 mb-1">Ambil Nomor Antrean</h3>
+                  <p className="text-sm text-gray-500 font-medium">Khusus pasien yang sudah terdaftar & terverifikasi.</p>
+                </div>
                 {error && (
                   <div className="bg-red-50 text-red-600 text-sm p-4 rounded-2xl border border-red-100 font-medium">
                     {error}
                   </div>
                 )}
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2 ml-1">Nama Lengkap</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full border-2 border-gray-300 bg-white p-4 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium text-gray-800 placeholder:text-gray-400"
-                    placeholder="Contoh: Sang Kala Aji"
-                  />
-                </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2 ml-1">No. WhatsApp</label>
                   <div className="relative">
@@ -224,8 +312,8 @@ export default function Home() {
                 </div>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !formData.name || !formData.phone}
-                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-lg p-4 rounded-2xl flex items-center justify-center gap-2 hover:from-emerald-600 hover:to-teal-700 active:scale-95 disabled:opacity-50 disabled:active:scale-100 transition-all shadow-xl shadow-emerald-500/20 mt-4"
+                  disabled={isSubmitting || !formData.phone}
+                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold text-lg p-4 rounded-2xl flex items-center justify-center gap-2 hover:from-teal-600 hover:to-cyan-700 active:scale-95 disabled:opacity-50 disabled:active:scale-100 transition-all shadow-xl shadow-teal-500/20 mt-4"
                 >
                   {isSubmitting ? 'Memproses...' : 'Ambil Nomor Antrean'} 
                   {!isSubmitting && <ArrowRight className="w-5 h-5" />}
